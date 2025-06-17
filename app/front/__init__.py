@@ -1,0 +1,1 @@
+from .routes import front_bp

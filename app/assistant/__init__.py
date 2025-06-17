@@ -1,0 +1,1 @@
+from .routes import assistant_bp
