@@ -1,11 +1,17 @@
 import MySQLdb
+from dotenv import load_dotenv
+import os
+
+load_dotenv() # This loads variables from a .env file in the current directory
+
+
 
 def db():
     conn = MySQLdb.connect(
         host="localhost",
-        user="root",
-        passwd="",
-        db="dr_assistant",  # <-- Change database name here
+        user= os.getenv("user"),
+        password=os.getenv("password"),
+        db= os.getenv("database")
     )
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     return conn, cursor
@@ -62,16 +68,16 @@ def create_tables():
     """)
 
 
+
     # creating appointment table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS appointment (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        month VARCHAR(20) NOT NULL,
         date DATE NOT NULL,
-        time TIME NOT NULL,
+        time VARCHAR(255) NOT NULL,
         doctor_name VARCHAR(255) NOT NULL,
-        doctor_phone_number VARCHAR(20) NOT NULL,
-        email VARCHAR(255) NOT NULL
+        patient_id INT NOT NULL,
+        status ENUM('pending', 'approved', 'cancelled', 'on location') NOT NULL DEFAULT 'pending'
     )
     """)
 
@@ -106,8 +112,18 @@ def create_tables():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS doctor_times (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        time TIME NOT NULL,
+        time VARCHAR(255) NOT NULL,
         status ENUM('available', 'unavailable') NOT NULL DEFAULT 'available'
+    )
+    """)
+
+
+    # an table for clinic open/close days
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS clinic_days (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        day VARCHAR(20) NOT NULL,
+        status ENUM('open', 'closed') NOT NULL DEFAULT 'open'
     )
     """)
 

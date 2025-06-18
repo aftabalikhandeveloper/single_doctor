@@ -1,0 +1,223 @@
+{% extends "patient/base.html" %}
+
+{% block styles %}
+
+{% endblock %}
+
+
+{% block dashbaord_content %}
+<main class="flex-1 p-4 md:p-6">
+    <div class="max-w-5xl mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">My Appointments</h2>
+            <button id="openModalBtn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold">Book Appointment</button>
+        </div>
+        <!-- Appointments Table -->
+        <div class="bg-white rounded-xl shadow p-4 mb-8">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 text-left">Date</th>
+                        <th class="px-4 py-2 text-left">Time</th>
+                        <th class="px-4 py-2 text-left">Doctor</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="appointmentsTable" class="bg-white divide-y divide-gray-200">
+                    <!-- Appointments will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Modal for Booking Appointment -->
+    <div id="appointmentModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl p-8 relative">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Doctor Info -->
+                <div class="flex flex-col items-center border rounded-lg p-4">
+                    <img src="https://cdn-icons-png.flaticon.com/512/387/387561.png" alt="Doctor" class="w-24 h-24 rounded-full mb-2">
+                    <div class="font-bold text-lg">Prof. Admin Doctor</div>
+                    <div class="text-sm text-gray-600">Phone: (845) 723-3887</div>
+                    <div class="text-sm text-gray-600">Email: admin@gmail.com</div>
+                    <div class="text-sm text-gray-600 text-center">Address: 91415 Jacobs Mill Langoshville, AR 35617</div>
+                </div>
+                <!-- Calendar & Times -->
+                <div>
+                    <div id="calendarContainer" class="mb-4"></div>
+                    <div id="timesContainer" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto"></div>
+                </div>
+                <!-- Patient Info -->
+                <div class="flex flex-col items-center border rounded-lg p-4">
+                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Patient" class="w-24 h-24 rounded-full mb-2">
+                    <div class="font-bold text-lg">Patient</div>
+                    <div class="text-sm text-gray-600" id="patientAge">53 years old, male</div>
+                    <div class="text-sm text-gray-600" id="patientLastVisit">Last Visited at 17 Jun 2025</div>
+                    <div class="text-sm text-gray-600" id="patientPhone">Phone: 820.205.7662</div>
+                    <div class="text-sm text-gray-600" id="patientEmail">Email: patient@gmail.com</div>
+                    <div class="text-sm text-gray-600 text-center" id="patientAddress">Address: 523 Goldner Throughway Lake Ona, VA 41144</div>
+                </div>
+            </div>
+            <div class="flex justify-between mt-8">
+                <button id="backBtn" class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 flex items-center"><span class="mr-2">&#8592;</span>Back</button>
+                <div>
+                    <button id="cancelBtn" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 mr-2 flex items-center"><span class="mr-2">&#10006;</span>Cancel</button>
+                    <button id="saveBtn" class="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 flex items-center"><span class="mr-2">&#10003;</span>Save</button>
+                </div>
+            </div>
+            <div id="modalMessage" class="text-center mt-4 text-sm"></div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Helper: show message
+function showModalMessage(msg, type="info") {
+    const el = document.getElementById('modalMessage');
+    el.textContent = msg;
+    el.className = "text-center mt-4 text-sm " + (type === "error" ? "text-red-600" : "text-green-600");
+    setTimeout(() => { el.textContent = ""; }, 3000);
+}
+// Format time to display AM/PM
+function formatTimeAmPm(timeStr) {
+    // Take the first 5 characters of time string (HH:MM)
+    const time = timeStr.slice(0, 5);
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12; // Convert 0 to 12
+    return `${formattedHour}:${minutes} ${ampm}`;
+}
+// Load appointments
+function loadAppointments() {
+    fetch('/patient/api/appointments')
+        .then(res => res.json())
+        .then(apps => {
+            const tbody = document.getElementById('appointmentsTable');
+            tbody.innerHTML = '';
+            apps.forEach(a => {
+                // Format date as YYYY-MM-DD (local)
+                let dateStr = a.date;
+                if (dateStr && dateStr.length > 10) {
+                    // If date is in ISO or UTC format, extract YYYY-MM-DD
+                    const d = new Date(dateStr);
+                    dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                }
+                tbody.innerHTML += `<tr>
+                    <td class='px-4 py-2'>${dateStr}</td>
+                    <td class='px-4 py-2'>${formatTimeAmPm(a.time)}</td>
+                    <td class='px-4 py-2'>${a.doctor_name}</td>
+                    <td class='px-4 py-2'>${a.status.charAt(0).toUpperCase() + a.status.slice(1)}</td>
+                </tr>`;
+            });
+        });
+}
+// Modal logic
+const modal = document.getElementById('appointmentModal');
+document.getElementById('openModalBtn').onclick = () => { modal.classList.remove('hidden'); loadCalendar(); };
+document.getElementById('closeModalBtn').onclick = () => { modal.classList.add('hidden'); };
+document.getElementById('cancelBtn').onclick = () => { modal.classList.add('hidden'); };
+document.getElementById('backBtn').onclick = () => { modal.classList.add('hidden'); };
+// Calendar logic
+let selectedDate = null;
+let selectedTime = null;
+function loadCalendar() {
+    fetch('/patient/api/open-days').then(res => res.json()).then(openDays => {
+        // Render calendar for current month
+        const today = new Date();
+        let year = today.getFullYear();
+        let month = today.getMonth();
+        renderCalendar(year, month, openDays);
+    });
+}
+function renderCalendar(year, month, openDays) {
+    const container = document.getElementById('calendarContainer');
+    container.innerHTML = '';
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const daysShort = ["S", "M", "T", "W", "T", "F", "S"];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const today = new Date();
+    let html = `<div class='flex items-center justify-between mb-2'>
+        <button id='prevMonth' class='px-2 py-1 rounded hover:bg-gray-200'>&lt;</button>
+        <span class='font-semibold'>${monthNames[month]} ${year}</span>
+        <button id='nextMonth' class='px-2 py-1 rounded hover:bg-gray-200'>&gt;</button>
+    </div>`;
+    html += `<div class='grid grid-cols-7 gap-1 mb-2'>${daysShort.map(d => `<div class='text-center font-semibold'>${d}</div>`).join('')}</div>`;
+    let dayCells = [];
+    for (let i = 0; i < firstDay.getDay(); i++) dayCells.push('<div></div>');
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+        const dateObj = new Date(year, month, d);
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const isOpen = openDays.includes(dayName);
+        const isToday = (dateObj.toDateString() === today.toDateString());
+        const isPast = dateObj < today.setHours(0,0,0,0);
+        // Disable if in the past
+        let disabled = isPast || !isOpen;
+        // Always use YYYY-MM-DD (local) for data-date
+        const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
+        dayCells.push(`<button class='w-8 h-8 rounded-full ${!disabled ? (isToday ? 'bg-blue-200' : 'bg-blue-50 hover:bg-blue-100') : 'bg-gray-200 text-gray-400 cursor-not-allowed'} ${selectedDate === dateStr ? 'ring-2 ring-blue-500' : ''}' ${!disabled ? '' : 'disabled'} data-date='${dateStr}' ${!disabled ? '' : 'disabled'}>${d}</button>`);
+    }
+    html += `<div class='grid grid-cols-7 gap-1'>${dayCells.join('')}</div>`;
+    container.innerHTML = html;
+    document.getElementById('prevMonth').onclick = () => renderCalendar(year, month-1 < 0 ? 11 : month-1, openDays);
+    document.getElementById('nextMonth').onclick = () => renderCalendar(year, month+1 > 11 ? 0 : month+1, openDays);
+    container.querySelectorAll('button[data-date]').forEach(btn => {
+        if (!btn.disabled) {
+            btn.onclick = () => {
+                selectedDate = btn.getAttribute('data-date');
+                renderCalendar(year, month, openDays);
+                loadTimes(selectedDate);
+            };
+        }
+    });
+}
+function loadTimes(date) {
+    fetch('/patient/api/available-times?date=' + encodeURIComponent(date)).then(res => res.json()).then(times => {
+        const container = document.getElementById('timesContainer');
+        container.innerHTML = '';
+        times.forEach(t => {
+            container.innerHTML += `<button class='px-4 py-2 rounded bg-gray-100 hover:bg-blue-200 mb-1 ${selectedTime === t ? 'ring-2 ring-blue-500' : ''}' onclick='selectTime("${t}")'>${formatTimeAmPm(t)}</button>`;
+        });
+        // If no times left, show message
+        if (times.length === 0) {
+            container.innerHTML = '<div class="text-center text-red-500">No available times for this day.</div>';
+        }
+    });
+}
+window.selectTime = function(t) {
+    selectedTime = t;
+    loadTimes(selectedDate);
+};
+// Save appointment
+const saveBtn = document.getElementById('saveBtn');
+saveBtn.onclick = function() {
+    if (!selectedDate || !selectedTime) {
+        showModalMessage('Please select a date and time.', 'error');
+        return;
+    }
+    fetch('/patient/api/appointments', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            date: selectedDate,
+            time: selectedTime,
+            doctor_name: 'Prof. Admin Doctor', // static for demo
+            patient_id: 1 // static for demo
+        })
+    }).then(async res => {
+        const data = await res.json();
+        if (res.ok) {
+            showModalMessage(data.message, 'success');
+            setTimeout(() => { document.getElementById('appointmentModal').classList.add('hidden'); loadAppointments(); }, 1200);
+        } else {
+            showModalMessage(data.message || 'Error', 'error');
+        }
+    });
+};
+// Initial load
+loadAppointments();
+</script>
+{% endblock %}

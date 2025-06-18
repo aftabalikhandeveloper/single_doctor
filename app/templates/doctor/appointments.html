@@ -1,0 +1,312 @@
+{% extends "doctor/base.html" %}
+
+{% block dashbaord_content %}
+<main class="flex-1 p-4 md:p-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">All Appointments</h2>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 mb-8 overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 text-left">Date</th>
+                        <th class="px-4 py-2 text-left">Time</th>
+                        <th class="px-4 py-2 text-left">Patient</th>
+                        <th class="px-4 py-2 text-left">Doctor</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                        <th class="px-4 py-2 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appointmentsTable" class="bg-white divide-y divide-gray-200">
+                    <!-- Appointments will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl p-8 relative">
+            <button id="closeEditModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+            <h3 class="text-xl font-bold mb-4">Edit Appointment</h3>
+            <input type="hidden" id="editAppointmentId">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Patient Info -->
+                <div class="flex flex-col items-center border rounded-lg p-4">
+                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Patient" class="w-24 h-24 rounded-full mb-2">
+                    <div class="font-bold text-lg" id="patientName">Patient</div>
+                    <div class="text-sm text-gray-600" id="patientId">ID: 1</div>
+                    <div class="text-sm text-gray-600">Status:</div>
+                    <select id="editStatus" class="w-full px-3 py-2 border rounded-lg mt-2">
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="on location">On Location</option>
+                    </select>
+                </div>
+                <!-- Calendar & Times -->
+                <div>
+                    <div id="calendarContainer" class="mb-4"></div>
+                    <div id="timesContainer" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto"></div>
+                </div>
+                <!-- Doctor Info -->
+                <div class="flex flex-col items-center border rounded-lg p-4">
+                    <img src="https://cdn-icons-png.flaticon.com/512/387/387561.png" alt="Doctor" class="w-24 h-24 rounded-full mb-2">
+                    <div class="font-bold text-lg" id="doctorName">Prof. Admin Doctor</div>
+                    <div class="text-sm text-gray-600">Phone: (845) 723-3887</div>
+                    <div class="text-sm text-gray-600">Email: admin@gmail.com</div>
+                    <div class="text-sm text-gray-600 text-center">Address: 91415 Jacobs Mill Langoshville, AR 35617</div>
+                </div>
+            </div>
+            <div class="flex justify-between mt-8">
+                <button id="cancelEditBtn" class="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                <button id="saveAppointmentBtn" class="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 flex items-center"><span class="mr-2">&#10003;</span>Save Changes</button>
+            </div>
+            <div id="editModalMessage" class="text-center mt-4 text-sm"></div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Helper: show message
+function showModalMessage(msg, type="info") {
+    const el = document.getElementById('editModalMessage');
+    el.textContent = msg;
+    el.className = "text-center mt-4 text-sm " + (type === "error" ? "text-red-600" : "text-green-600");
+    setTimeout(() => { el.textContent = ""; }, 3000);
+}
+
+// Format time to display AM/PM
+function formatTimeAmPm(timeStr) {
+    const time = timeStr.slice(0, 5);
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12; // Convert 0 to 12
+    return `${formattedHour}:${minutes} ${ampm}`;
+}
+
+// Calendar & time picker variables
+let selectedDate = null;
+let selectedTime = null;
+let currentAppointment = null;
+
+function loadCalendar() {
+    fetch('/doctor/api/open-days').then(res => res.json()).then(openDays => {
+        // Render calendar for current month
+        const today = new Date();
+        let year = today.getFullYear();
+        let month = today.getMonth();
+        renderCalendar(year, month, openDays);
+    });
+}
+
+function renderCalendar(year, month, openDays) {
+    const container = document.getElementById('calendarContainer');
+    container.innerHTML = '';
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const daysShort = ["S", "M", "T", "W", "T", "F", "S"];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const today = new Date();
+    let html = `<div class='flex items-center justify-between mb-2'>
+        <button id='prevMonth' class='px-2 py-1 rounded hover:bg-gray-200'>&lt;</button>
+        <span class='font-semibold'>${monthNames[month]} ${year}</span>
+        <button id='nextMonth' class='px-2 py-1 rounded hover:bg-gray-200'>&gt;</button>
+    </div>`;
+    html += `<div class='grid grid-cols-7 gap-1 mb-2'>${daysShort.map(d => `<div class='text-center font-semibold'>${d}</div>`).join('')}</div>`;
+    
+    let dayCells = [];
+    for (let i = 0; i < firstDay.getDay(); i++) dayCells.push('<div></div>');
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+        const dateObj = new Date(year, month, d);
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const isOpen = openDays.includes(dayName);
+        const isToday = (dateObj.toDateString() === today.toDateString());
+        const isPast = dateObj < today.setHours(0,0,0,0);
+        // Disable if in the past
+        let disabled = isPast || !isOpen;
+        // Always use YYYY-MM-DD (local) for data-date
+        const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
+        dayCells.push(`<button class='w-8 h-8 rounded-full ${!disabled ? (isToday ? 'bg-blue-200' : 'bg-blue-50 hover:bg-blue-100') : 'bg-gray-200 text-gray-400 cursor-not-allowed'} ${selectedDate === dateStr ? 'ring-2 ring-blue-500' : ''}' ${!disabled ? '' : 'disabled'} data-date='${dateStr}' ${!disabled ? '' : 'disabled'}>${d}</button>`);
+    }
+    
+    html += `<div class='grid grid-cols-7 gap-1'>${dayCells.join('')}</div>`;
+    container.innerHTML = html;
+    
+    document.getElementById('prevMonth').onclick = () => renderCalendar(year, month-1 < 0 ? 11 : month-1, openDays);
+    document.getElementById('nextMonth').onclick = () => renderCalendar(year, month+1 > 11 ? 0 : month+1, openDays);
+    
+    container.querySelectorAll('button[data-date]').forEach(btn => {
+        if (!btn.disabled) {
+            btn.onclick = () => {
+                selectedDate = btn.getAttribute('data-date');
+                renderCalendar(year, month, openDays);
+                loadTimes(selectedDate);
+            };
+        }
+    });
+}
+
+function loadTimes(date) {
+    fetch('/doctor/api/available-times?date=' + encodeURIComponent(date) + 
+          (currentAppointment ? '&exclude_id=' + currentAppointment.id : ''))
+    .then(res => res.json())
+    .then(times => {
+        const container = document.getElementById('timesContainer');
+        container.innerHTML = '';
+        
+        times.forEach(t => {
+            container.innerHTML += `<button class='px-4 py-2 rounded bg-gray-100 hover:bg-blue-200 mb-1 ${selectedTime === t ? 'ring-2 ring-blue-500' : ''}' onclick='selectTime("${t}")'>${formatTimeAmPm(t)}</button>`;
+        });
+        
+        // If current appointment's time on this date, add it as an option (to keep the same time)
+        if (currentAppointment && selectedDate === currentAppointment.date.slice(0,10) && 
+            !times.includes(currentAppointment.time) && !container.querySelector(`button[onclick='selectTime("${currentAppointment.time}")']`)) {
+            container.innerHTML += `<button class='px-4 py-2 rounded bg-green-100 hover:bg-green-200 mb-1 ${selectedTime === currentAppointment.time ? 'ring-2 ring-blue-500' : ''}' onclick='selectTime("${currentAppointment.time}")'>
+                ${formatTimeAmPm(currentAppointment.time)} (Current)
+            </button>`;
+        }
+        
+        // If no times left, show message
+        if (container.children.length === 0) {
+            container.innerHTML = '<div class="text-center text-red-500 py-2">No available times for this day.</div>';
+        }
+    });
+}
+
+window.selectTime = function(t) {
+    selectedTime = t;
+    loadTimes(selectedDate);
+};
+
+function showEditModal(app) {
+    currentAppointment = app;
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editAppointmentId').value = app.id;
+    document.getElementById('editStatus').value = app.status;
+    document.getElementById('doctorName').innerText = app.doctor_name || 'Prof. Admin Doctor';
+    document.getElementById('patientName').innerText = app.patient_name || 'Patient';
+    document.getElementById('patientId').innerText = `ID: ${app.patient_id || 'unknown'}`;
+    
+    // Initialize selected date and time based on current appointment
+    selectedDate = app.date.slice(0, 10);
+    selectedTime = app.time;
+    
+    // Load calendar with selected date highlighted
+    loadCalendar();
+}
+
+document.getElementById('closeEditModalBtn').onclick = function() {
+    document.getElementById('editModal').classList.add('hidden');
+};
+
+document.getElementById('cancelEditBtn').onclick = function() {
+    document.getElementById('editModal').classList.add('hidden');
+};
+
+document.getElementById('saveAppointmentBtn').onclick = function() {
+    const id = document.getElementById('editAppointmentId').value;
+    
+    if (!selectedDate || !selectedTime) {
+        showModalMessage('Please select a date and time.', 'error');
+        return;
+    }
+    
+    fetch(`/doctor/api/appointments/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            date: selectedDate,
+            time: selectedTime,
+            status: document.getElementById('editStatus').value
+        })
+    }).then(async res => {
+        const data = await res.json();
+        if (res.ok) {
+            showModalMessage(data.message || 'Appointment updated successfully!', 'success');
+            setTimeout(() => { 
+                document.getElementById('editModal').classList.add('hidden'); 
+                loadAppointments(); 
+            }, 1200);
+        } else {
+            showModalMessage(data.message || 'Error updating appointment.', 'error');
+        }
+    });
+};
+function loadAppointments() {
+    fetch('/doctor/api/appointments')
+        .then(res => res.json())
+        .then(apps => {
+            const tbody = document.getElementById('appointmentsTable');
+            tbody.innerHTML = '';
+            apps.forEach(a => {
+                let dateStr = a.date;
+                if (dateStr && dateStr.length > 10) {
+                    const d = new Date(dateStr);
+                    dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                }
+                tbody.innerHTML += `<tr>
+                    <td class='px-4 py-2'>${dateStr}</td>
+                    <td class='px-4 py-2'>${formatTimeAmPm(a.time)}</td>
+                    <td class='px-4 py-2'>${a.patient_name || 'Patient'} (ID: ${a.patient_id || 'unknown'})</td>
+                    <td class='px-4 py-2'>${a.doctor_name || 'Doctor'}</td>
+                    <td class='px-4 py-2'>
+                        <select class="border rounded py-1 px-2 status-dropdown" data-id="${a.id}">
+                            <option value="pending" ${a.status === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="approved" ${a.status === 'approved' ? 'selected' : ''}>Approved</option>
+                            <option value="cancelled" ${a.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                            <option value="on location" ${a.status === 'on location' ? 'selected' : ''}>On Location</option>
+                        </select>
+                    </td>
+                    <td class='px-4 py-2 flex gap-2'>
+                        <button class='bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full p-2' onclick='showEditModal(${JSON.stringify(a)})'>
+                            <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3z' /></svg>
+                        </button>
+                        <button class='bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-2' onclick='deleteAppointment(${a.id})'>
+                            <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' /></svg>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            
+            // Add event listeners to status dropdowns
+            document.querySelectorAll('.status-dropdown').forEach(dropdown => {
+                dropdown.addEventListener('change', function() {
+                    const appointmentId = this.dataset.id;
+                    const newStatus = this.value;
+                    
+                    fetch(`/doctor/api/appointments/${appointmentId}/status`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ status: newStatus })
+                    }).then(res => {
+                        if (!res.ok) {
+                            alert('Error updating status. Please try again.');
+                            loadAppointments(); // Reload to reset status
+                        }
+                    });
+                });
+            });
+        });
+}
+function deleteAppointment(id) {
+    if (!confirm('Delete this appointment?')) return;
+    fetch(`/doctor/api/appointments/${id}`, {method: 'DELETE'})
+        .then(() => loadAppointments());
+}
+
+// Handle status changes directly from table
+function changeStatus(id, status) {
+    fetch(`/doctor/api/appointments/${id}/status`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status})
+    });
+}
+
+// Initial load
+loadAppointments();
+</script>
+{% endblock %}

@@ -1,0 +1,148 @@
+<!-- Doctor Dashboard - Responsive Layout with Tailwind CSS and Sidebar Dropdowns -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    {% block styles %}  {% endblock %}
+
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-gray-100">
+<div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r transform -translate-x-full md:translate-x-0 md:static md:inset-0 transition-transform duration-200 ease-in-out flex-col py-6 px-4 min-h-screen">
+        <div class="flex items-center mb-8">
+            <span class="text-2xl font-bold text-gray-800">Dr.<span class="text-red-500">Assistant</span></span>
+        </div>
+        <nav class="flex-1">
+            <ul class="space-y-2">
+                <li><a href="/doctor" class="flex items-center px-3 py-2 rounded-lg bg-red-100 text-red-600 font-semibold"><i data-feather="activity" class="mr-3"></i>Doctor</a></li>
+                <li><a href="/doctor/time" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="user" class="mr-3"></i>Time</a></li>
+                <li><a href="/doctor/clinic-days" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="user" class="mr-3"></i>Clinic Days</a></li>
+                <li><a href="/doctor/appointments" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="user" class="mr-3"></i>Appointments</a></li>
+            </ul>
+            <div class="mt-8">
+                <ul class="space-y-2">
+                    <li><a href="#" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="home" class="mr-3"></i>Dashboard</a></li>
+                    <!-- Management Dropdown -->
+                    <li>
+                        <button type="button" class="flex items-center w-full px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 focus:outline-none" onclick="toggleDropdown('mgmtDropdown')">
+                            <i data-feather="settings" class="mr-3"></i>Management
+                            <svg class="ml-auto w-4 h-4 transition-transform" id="mgmtDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <ul id="mgmtDropdown" class="ml-8 mt-1 space-y-1 hidden">
+                            <li><a href="#" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="user" class="mr-2"></i>Patients</a></li>
+                            <li><a href="#" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="user-check" class="mr-2"></i>Assistants</a></li>
+                            <li><a href="#" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="edit-3" class="mr-2"></i>Drug Management</a></li>
+                        </ul>
+                    </li>
+                    <!-- Records Dropdown -->
+                    <li>
+                        <button type="button" class="flex items-center w-full px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 focus:outline-none" onclick="toggleDropdown('recordsDropdown')">
+                            <i data-feather="folder" class="mr-3"></i>Records
+                            <svg class="ml-auto w-4 h-4 transition-transform" id="recordsDropdownIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <ul id="recordsDropdown" class="ml-8 mt-1 space-y-1 hidden">
+                            <li><a href="#" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="calendar" class="mr-2"></i>Appointments</a></li>
+                            <li><a href="#" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="file-text" class="mr-2"></i>Prescriptions</a></li>
+                            <li><a href="#" class="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"><i data-feather="file" class="mr-2"></i>Invoices</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </aside>
+    <!-- Overlay for mobile sidebar -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-30 z-30 hidden md:hidden"></div>
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-h-screen">
+        <!-- Topbar -->
+        <div class="flex items-center justify-between bg-white px-4 py-3 border-b">
+            <button id="sidebarToggle" class="text-gray-700 focus:outline-none md:hidden mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <div class="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Doctor Dashboard</h1>
+                    <div class="flex items-center text-sm text-red-500 mt-1">
+                        <span class="mr-2">•</span> Doctor Mode
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 mt-2 sm:mt-0">
+                    <div class="relative">
+                        <input type="text" placeholder="Search..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-200 w-40 sm:w-48">
+                        <span class="absolute left-3 top-2.5 text-gray-400"><i data-feather="search"></i></span>
+                    </div>
+                    <button class="relative text-gray-600 hover:text-gray-800">
+                        <i data-feather="bell"></i>
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">3</span>
+                    </button>
+                    <div class="flex items-center space-x-2 bg-red-100 px-3 py-1 rounded-full">
+                        <span class="bg-red-500 text-white rounded-full p-1"><i data-feather="user"></i></span>
+                        <div class="text-right">
+                            <div class="text-sm font-semibold text-gray-800">Dr. Smith</div>
+                            <div class="text-xs text-gray-500">Doctor</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Dashbaord area -->
+
+        {% block dashbaord_content %}
+
+        {% endblock %}
+
+    </div>
+</div>
+<script>
+    feather.replace();
+    // Sidebar toggle for mobile
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    function openSidebar() {
+        sidebar.classList.remove('-translate-x-full');
+        sidebarOverlay.classList.remove('hidden');
+    }
+    function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+        sidebarOverlay.classList.add('hidden');
+    }
+    if (sidebarToggle && sidebar && sidebarOverlay) {
+        sidebarToggle.onclick = openSidebar;
+        sidebarOverlay.onclick = closeSidebar;
+    }
+    // Dropdowns
+    function toggleDropdown(id) {
+        const dropdown = document.getElementById(id);
+        const icon = document.getElementById(id + 'Icon');
+        if (dropdown.classList.contains('hidden')) {
+            dropdown.classList.remove('hidden');
+            icon.classList.add('rotate-180');
+        } else {
+            dropdown.classList.add('hidden');
+            icon.classList.remove('rotate-180');
+        }
+    }
+    // Close sidebar on resize to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768) {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+        }
+    });
+</script>
+{% block scripts %}
+
+{% endblock %}
+</body>
+</html>

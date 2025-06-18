@@ -1,0 +1,167 @@
+{% extends "doctor/base.html" %}
+
+
+{% block styles %}
+
+{% endblock %}
+
+
+{% block dashbaord_content %}
+<main class="flex-1 p-4 md:p-6">
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">Doctor Times</h2>
+        <!-- Add Time Form -->
+        <form id="addTimeForm" class="flex flex-col sm:flex-row gap-2 mb-6">
+            <input type="time" name="time" id="addTimeInput" required class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200">
+            <select name="status" id="addStatusInput" class="px-3 py-2 border rounded-lg">
+                <option value="available">Available</option>
+                <option value="unavailable">Unavailable</option>
+            </select>
+            <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Add</button>
+        </form>
+        <!-- Times Table -->
+        <div class="bg-white rounded-xl shadow p-4">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="timesTable" class="bg-white divide-y divide-gray-200">
+                    <!-- Times will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h3 class="text-lg font-semibold mb-4">Edit Time</h3>
+            <form id="editTimeForm" class="flex flex-col gap-3">
+                <input type="hidden" id="editTimeId">
+                <input type="time" id="editTimeInput" required class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200">
+                <select id="editStatusInput" class="px-3 py-2 border rounded-lg">
+                    <option value="available">Available</option>
+                    <option value="unavailable">Unavailable</option>
+                </select>
+                <div class="flex gap-2 mt-2">
+                    <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 flex-1">Save</button>
+                    <button type="button" id="closeEditModal" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex-1">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+
+
+{% block scripts %}
+<script>
+// Fetch and render doctor times
+function loadTimes() {
+    fetch('/doctor/api/times')
+        .then(res => res.json())
+        .then(times => {
+            const tbody = document.getElementById('timesTable');
+            tbody.innerHTML = '';
+            times.forEach(time => {
+                tbody.innerHTML += `
+                <tr>
+                    <td class="px-4 py-2">${time.time.slice(0,5)}</td>
+                    <td class="px-4 py-2">${time.status.charAt(0).toUpperCase() + time.status.slice(1)}</td>
+                    <td class="px-4 py-2 flex gap-2">
+                        <button class="bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full p-2" onclick="showEditModal(${time.id}, '${time.time}', '${time.status}')"><svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3z' /></svg></button>
+                        <button class="bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-2" onclick="deleteTime(${time.id})"><svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' /></svg></button>
+                    </td>
+                </tr>`;
+            });
+        });
+}
+// Add time
+const addTimeForm = document.getElementById('addTimeForm');
+addTimeForm.onsubmit = function(e) {
+    e.preventDefault();
+    console.log('submitting form');
+    fetch('/doctor/api/times', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            time: document.getElementById('addTimeInput').value,
+            status: document.getElementById('addStatusInput').value
+        })
+    }).then(() => {
+        console.log('Time added successfully');
+        addTimeForm.reset();
+        loadTimes();
+    });
+};
+
+// Format time to display AM/PM
+function formatTimeAmPm(timeStr) {
+    // Take the first 5 characters of time string (HH:MM)
+    const time = timeStr.slice(0, 5);
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12; // Convert 0 to 12
+    return `${formattedHour}:${minutes} ${ampm}`;
+}
+
+// Update the loadTimes function to use the formatter
+function loadTimes() {
+    fetch('/doctor/api/times')
+        .then(res => res.json())
+        .then(times => {
+            const tbody = document.getElementById('timesTable');
+            tbody.innerHTML = '';
+            times.forEach(time => {
+                tbody.innerHTML += `
+                <tr>
+                    <td class="px-4 py-2">${formatTimeAmPm(time.time)}</td>
+                    <td class="px-4 py-2">${time.status.charAt(0).toUpperCase() + time.status.slice(1)}</td>
+                    <td class="px-4 py-2 flex gap-2">
+                        <button class="bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full p-2" onclick="showEditModal(${time.id}, '${time.time}', '${time.status}')"><svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3z' /></svg></button>
+                        <button class="bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-2" onclick="deleteTime(${time.id})"><svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' /></svg></button>
+                    </td>
+                </tr>`;
+            });
+        });
+}
+// Delete time
+function deleteTime(id) {
+    if (!confirm('Delete this time?')) return;
+    fetch(`/doctor/api/times/${id}`, {method: 'DELETE'})
+        .then(() => loadTimes());
+}
+// Edit modal logic
+function showEditModal(id, time, status) {
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editTimeId').value = id;
+    document.getElementById('editTimeInput').value = time;
+    document.getElementById('editStatusInput').value = status;
+}
+document.getElementById('closeEditModal').onclick = function() {
+    document.getElementById('editModal').classList.add('hidden');
+};
+document.getElementById('editTimeForm').onsubmit = function(e) {
+    e.preventDefault();
+    const id = document.getElementById('editTimeId').value;
+    fetch(`/doctor/api/times/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            time: document.getElementById('editTimeInput').value,
+            status: document.getElementById('editStatusInput').value
+        })
+    }).then(() => {
+        document.getElementById('editModal').classList.add('hidden');
+        loadTimes();
+    });
+};
+// Initial load
+loadTimes();
+</script>
+{% endblock %}

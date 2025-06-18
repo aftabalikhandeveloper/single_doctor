@@ -1,0 +1,178 @@
+{% extends "doctor/base.html" %}
+
+
+{% block styles %}
+
+{% endblock %}
+
+
+{% block dashbaord_content %}
+<main class="flex-1 p-4 md:p-6">
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">Clinic Days</h2>
+        <!-- Add Clinic Day Form -->
+        <form id="addClinicDayForm" class="flex flex-col sm:flex-row gap-2 mb-6">
+            <select name="day" id="addDayInput" required class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200">
+                <option value="">Select Day</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+            <select name="status" id="addStatusInput" class="px-3 py-2 border rounded-lg">
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+            </select>
+            <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Add</button>
+        </form>
+        <div id="message" class="mb-4 text-center text-sm"></div>
+        <!-- Clinic Days Table -->
+        <div class="bg-white rounded-xl shadow p-4">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2 text-left">Day</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                        <th class="px-4 py-2 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="clinicDaysTable" class="bg-white divide-y divide-gray-200">
+                    <!-- Clinic days will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h3 class="text-lg font-semibold mb-4">Edit Clinic Day</h3>
+            <form id="editClinicDayForm" class="flex flex-col gap-3">
+                <input type="hidden" id="editDayId">
+                <select id="editDayInput" required class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200">
+                    <option value="">Select Day</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                </select>
+                <select id="editStatusInput" class="px-3 py-2 border rounded-lg">
+                    <option value="open">Open</option>
+                    <option value="closed">Closed</option>
+                </select>
+                <div class="flex gap-2 mt-2">
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Save</button>
+                    <button type="button" id="closeEditModal" class="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+function showMessage(msg, type="info") {
+    const el = document.getElementById('message');
+    el.textContent = msg;
+    el.className = "mb-4 text-center text-sm " + (type === "error" ? "text-red-600" : "text-green-600");
+    setTimeout(() => { el.textContent = ""; }, 3000);
+}
+
+// Fetch and render clinic days
+function loadClinicDays() {
+    fetch('/doctor/api/clinic-days')
+        .then(res => res.json())
+        .then(days => {
+            const tbody = document.getElementById('clinicDaysTable');
+            tbody.innerHTML = '';
+            days.forEach(day => {
+                tbody.innerHTML += `
+                <tr>
+                    <td class="px-4 py-2">${day.day}</td>
+                    <td class="px-4 py-2">${day.status.charAt(0).toUpperCase() + day.status.slice(1)}</td>
+                    <td class="px-4 py-2 flex gap-2">
+                        <button class="bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full p-2" onclick="showEditModal(${day.id}, '${day.day}', '${day.status}')">
+                            <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3z' /></svg>
+                        </button>
+                        <button class="bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-2" onclick="deleteClinicDay(${day.id})">
+                            <svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12' /></svg>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+        });
+}
+// Add clinic day
+const addClinicDayForm = document.getElementById('addClinicDayForm');
+addClinicDayForm.onsubmit = function(e) {
+    e.preventDefault();
+    fetch('/doctor/api/clinic-days', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            day: document.getElementById('addDayInput').value,
+            status: document.getElementById('addStatusInput').value
+        })
+    }).then(async res => {
+        if (res.ok) {
+            showMessage('Clinic day added!', 'success');
+            addClinicDayForm.reset();
+            loadClinicDays();
+        } else {
+            const data = await res.json();
+            showMessage(data.message || 'Error', 'error');
+        }
+    });
+};
+// Delete clinic day
+function deleteClinicDay(id) {
+    if (!confirm('Delete this clinic day?')) return;
+    fetch(`/doctor/api/clinic-days/${id}`, {method: 'DELETE'})
+        .then(() => {
+            showMessage('Clinic day deleted!', 'success');
+            loadClinicDays();
+        });
+}
+// Edit modal logic
+function showEditModal(id, day, status) {
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editDayId').value = id;
+    document.getElementById('editDayInput').value = day;
+    document.getElementById('editStatusInput').value = status;
+}
+document.getElementById('closeEditModal').onclick = function() {
+    document.getElementById('editModal').classList.add('hidden');
+};
+document.getElementById('editClinicDayForm').onsubmit = function(e) {
+    e.preventDefault();
+    const id = document.getElementById('editDayId').value;
+    fetch(`/doctor/api/clinic-days/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            day: document.getElementById('editDayInput').value,
+            status: document.getElementById('editStatusInput').value
+        })
+    }).then(async res => {
+        if (res.ok) {
+            showMessage('Clinic day updated!', 'success');
+            document.getElementById('editModal').classList.add('hidden');
+            loadClinicDays();
+        } else {
+            const data = await res.json();
+            showMessage(data.message || 'Error', 'error');
+        }
+    });
+};
+// Initial load
+loadClinicDays();
+</script>
+{% endblock %}
+
